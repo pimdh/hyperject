@@ -1,0 +1,4 @@
+.pytest_cache
+**/*.pyc
+Hyperject.egg-info
+.idea
