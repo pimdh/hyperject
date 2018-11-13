@@ -13,14 +13,15 @@ class FunctionFactory(Factory):
 
 class SingletonFactory(Factory):
     def __init__(self, f):
-        self._instance = None
+        self._instances = {}
         self._f = f
 
     def __call__(self, container):
-        if self._instance is not None:
-            return self._instance
-        self._instance = self._f(container)
-        return self._instance
+        stored = self._instances.get(id(container))
+        if stored is not None:
+            return stored
+        self._instances[id(container)] = self._f(container)
+        return self._instances[id(container)]
 
 
 def singleton(f):
@@ -41,27 +42,40 @@ def recursive_traversal(graph, path):
 
 
 class Container:
-    def __init__(self, graph, path=()):
+    def __init__(self, graph):
         self._graph = graph
-        self._path = path
 
     @classmethod
     def make(cls, factory_graph, config):
-        return Container({'config': config, **factory_graph}, ())
+        return Container({'config': config, **factory_graph})
 
-    def __getattr__(self, key):
-        new_path = self._path + (key,)
+    def get(self, path):
         try:
-            obj = recursive_traversal(self._graph, new_path)
+            obj = recursive_traversal(self._graph, path)
         except KeyError:
-            raise KeyError(f"Object at path {new_path} not found.")
+            raise KeyError(f"Object at path {path} not found.")
 
         if isinstance(obj, Factory):
-            return obj(Container(self._graph, ()))
+            return obj(self)
         elif isinstance(obj, dict):
-            return Container(self._graph, new_path)
+            return TraversedContainer(self, path)
         else:
             return obj
 
+    def __getattr__(self, key):
+        return self.get((key,))
+
+    def dict(self, path=()):
+        return recursive_traversal(self._graph, path)
+
+
+class TraversedContainer:
+    def __init__(self, container, path):
+        self._container = container
+        self._path = path
+
+    def __getattr__(self, key):
+        return self._container.get(self._path + (key,))
+
     def dict(self):
-        return recursive_traversal(self._graph, self._path)
+        return self._container.dict(self._path)
