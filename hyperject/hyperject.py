@@ -1,3 +1,6 @@
+from weakref import WeakKeyDictionary
+
+
 class Factory:
     def __call__(self, container):
         raise NotImplementedError()
@@ -13,15 +16,15 @@ class FunctionFactory(Factory):
 
 class SingletonFactory(Factory):
     def __init__(self, f):
-        self._instances = {}
+        self._instances = WeakKeyDictionary()
         self._f = f
 
     def __call__(self, container):
-        stored = self._instances.get(id(container))
-        if stored is not None:
-            return stored
-        self._instances[id(container)] = self._f(container)
-        return self._instances[id(container)]
+        if container in self._instances:
+            return self._instances[container]
+
+        self._instances[container] = self._f(container)
+        return self._instances[container]
 
 
 def singleton(f):
